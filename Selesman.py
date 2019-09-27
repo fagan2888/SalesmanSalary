@@ -1,65 +1,86 @@
 import sqlite3
 from openpyxl import Workbook
 from datetime import date
+from datetime import timedelta
+from datetime import datetime
 
 
-conn = sqlite3.connect(r"Data\data.db")
-cur = conn.cursor()
+class Selesman(object):
+    def __init__(self, cur):
+        self.cur = cur
+        self.ye_wu_yuan = None              # 业务员
+        self.ji_gou = None                  # 机构
+        self.xing_ming = None               # 姓名
+        self.gong_hao = None                # 工号
+        self.ru_zhi_shi_jian = None         # 入职时间
+        self.ru_si_shi_jian = None          # 入司时间
+        self.kao_he_lei_xing = None         # 考核类型
+        self.he_tong_lei_xing = None        # 合同类型
 
+    @property
+    def month(self):
+        """考核月份"""
+        return self._month
 
-class Selesman():
-    def __init__(self):
-        self.month = None               # 考核月份
-        self.ye_wu_yuan = None          # 业务员
-        self.xing_ming = None           # 姓名
-        self.gong_hao = None            # 工号
-        self.ru_zhi_shi_jian = None     # 入职时间
-        self.si_ling_gong_zi = None     # 司龄工资
-        self.kao_he_lei_xing = None     # 考核类型
-        self.he_tong_lei_xing = None    # 合同类型
+    @month.setter
+    def month(self, value):
+        """考核月份"""
+        if int(value) > 0 and int(value) <= 12:
+            self._month = value
+        else:
+            m = input("请输入正确的考核月份：")
+            self.month = m
+
+    @property
+    def year(self):
+        """今年的年份"""
+        return datetime.now().year
 
     @property
     def zhong_zhi(self):
+        """中心支公司"""
         return self._zhong_zhi
 
     @zhong_zhi.setter
     def zhong_zhi(self, value):
+        """中心支公司"""
         sql_str = f"SELECT [中心支公司简称] \
             FROM [中心支公司] \
             WHERE [中心支公司] = '{value}'"
-        cur.execute(sql_str)
-        self._zhong_zhi = cur.fetchone()[0]
+        self.cur.execute(sql_str)
+        self._zhong_zhi = self.cur.fetchone()[0]
 
     @property
-    def ji_gou(self):
-        return self._ji_gou
-
-    @ji_gou.setter
-    def ji_gou(self, value):
+    def ji_gou_jian_cheng(self):
+        """机构"""
         sql_str = f"SELECT [机构简称] \
             FROM [机构] \
-            WHERE [机构] = '{value}'"
-        cur.execute(sql_str)
-        self._ji_gou = cur.fetchone()[0]
+            WHERE [机构] = '{self.ji_gou}'"
+        self.cur.execute(sql_str)
+        return self.cur.fetchone()[0]
 
     @property
     def tuan_dui(self):
+        """销售团队"""
         return self._tuan_dui
 
     @tuan_dui.setter
     def tuan_dui(self, value):
+        """销售团队"""
         sql_str = f"SELECT [团队简称] \
             FROM [团队] \
             WHERE [团队] = '{value}'"
-        cur.execute(sql_str)
-        self._tuan_dui = cur.fetchone()[0]
+        self.cur.execute(sql_str)
+        self._tuan_dui = self.cur.fetchone()[0]
 
     @property
     def zhi_ji(self):
+        """现任职级"""
         return self._zhi_ji
 
     @zhi_ji.setter
     def zhi_ji(self, value):
+        """现任职级"""
         if value == '(null)':
             self._zhi_ji = ''
         else:
@@ -67,95 +88,132 @@ class Selesman():
 
     @property
     def ru_si_zhi_ji(self):
+        """入司职级"""
         return self._ru_si_zhi_ji
 
     @ru_si_zhi_ji.setter
     def ru_si_zhi_ji(self, value):
+        """入司职级"""
         if value == '(null)':
             self._ru_si_zhi_ji = ''
         else:
             self._ru_si_zhi_ji = value
 
     @property
-    def ru_si_shi_jian(self):
-        return self._ru_si_shi_jian
+    def he_ding(self):
+        """是否参与核定"""
+        if int(self.ru_si_shi_jian[5:7]) == int(self.month) \
+           and int(self.ru_si_shi_jian[:4]) != self.year:
+            return True
+        else:
+            return False
 
-    @ru_si_shi_jian.setter
-    def ru_si_shi_jian(self, value):
-        pass
+    @property
+    def shang_nian_bao_fei(self):
+        """上年保费"""
+        # 入司月份与考核月份相同（入司每满12个月）
+        # 同时不是本年入司的员工
+        if self.he_ding is True:
+            start_date = f"{self.year-1}-{self.month:>02}"
+            end_date = f"{self.year}-{(int(self.month)-1):>02}"
 
+            sql_str = f"SELECT SUM ([签单保费/批改保费]) \
+                FROM [司龄工资保费清单] \
+                WHERE  [业务员] = '{self.ye_wu_yuan}' \
+                AND [投保确认日期] >= '{start_date}' \
+                AND [投保确认日期] <= '{end_date}'"
+            self.cur.execute(sql_str)
+            temp = self.cur.fetchone()
 
-def write_excel(info):
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "前线人员司龄工资信息表"
-    nrow = 1
-    ws.cell(row=nrow, column=1).value = '序号'
-    ws.cell(row=nrow, column=2).value = '机构'
-    ws.cell(row=nrow, column=3).value = '团队'
-    ws.cell(row=nrow, column=4).value = '姓名'
-    ws.cell(row=nrow, column=5).value = '合同类型'
-    ws.cell(row=nrow, column=6).value = '现任职级'
-    ws.cell(row=nrow, column=7).value = '入司职级'
-    ws.cell(row=nrow, column=8).value = '入司时间'
-    ws.cell(row=nrow, column=9).value = '17年签单保费'
-    ws.cell(row=nrow, column=10).value = '18年签单保费'
-    ws.cell(row=nrow, column=11).value = '同比增长率'
-    ws.cell(row=nrow, column=12).value = '现任司龄工资'
-    ws.cell(row=nrow, column=13).value = '司龄工资变化'
-    ws.cell(row=nrow, column=14).value = '考核后司龄工资'
+            if temp[0] is None:
+                self._shang_nian_bao_fei = ''
+            else:
+                self._shang_nian_bao_fei = temp[0]
+        else:
+            self._shang_nian_bao_fei = ''
 
-    nrow += 1
+        if self._shang_nian_bao_fei == '':
+            return self._shang_nian_bao_fei
+        else:
+            return self._shang_nian_bao_fei / 10000
 
-    for v in info:
-        ws.cell(row=nrow, column=1).value = nrow - 1
-        ws.cell(row=nrow, column=2).value = v.zhong_zhi
-        ws.cell(row=nrow, column=3).value = v.tuan_dui
-        ws.cell(row=nrow, column=4).value = v.xing_ming
-        ws.cell(row=nrow, column=5).value = v.he_tong_lei_xing
-        ws.cell(row=nrow, column=6).value = v.zhi_ji
-        ws.cell(row=nrow, column=7).value = v.ru_si_zhi_ji
-        ws.cell(row=nrow, column=8).value = v.ru_si_shi_jian
-        ws.cell(row=nrow, column=9).value = '17年签单保费'
-        ws.cell(row=nrow, column=10).value = '18年签单保费'
-        ws.cell(row=nrow, column=11).value = '同比增长率'
-        ws.cell(row=nrow, column=12).value = '现任司龄工资'
-        ws.cell(row=nrow, column=13).value = '司龄工资变化'
-        ws.cell(row=nrow, column=14).value = '考核后司龄工资'
-        nrow += 1
+    @property
+    def tong_qi_bao_fei(self):
+        """同期保费"""
+        if self.he_ding is True:
 
-    wb.save('1.xlsx')
+            end_date = f"{self.year-1}-{(int(self.month)-1):>02}"
+            start_date = f"{self.year-2}-{self.month:>02}"
 
+            sql_str = f"SELECT SUM ([签单保费/批改保费]) \
+                FROM [司龄工资保费清单] \
+                WHERE  [业务员] = '{self.ye_wu_yuan}' \
+                AND [投保确认日期] >= '{start_date}' \
+                AND [投保确认日期] <= '{end_date}'"
+            self.cur.execute(sql_str)
+            temp = self.cur.fetchone()
 
-def main():
-    month = input("请输入考核月份：")
-    sql_str = f"SELECT [业务员], [姓名], [工号], [中心支公司], [机构], \
-        [销售团队], [职级], [入司时间], [入职时间], [入司职级], \
-        [考核类型], [合同类型] \
-        FROM [销售人员] \
-        WHERE [在职状态] = '在职' \
-        ORDER BY [中心支公司], [销售团队], [考核类型], [业务员]"
-    cur.execute(sql_str)
-    datas = cur.fetchall()
-    info = []
-    for data in datas:
-        ren = Selesman()
-        ren.month = month
-        ren.ye_wu_yuan = data[0]
-        ren.xing_ming = data[1]
-        ren.gong_hao = data[2]
-        ren.zhong_zhi = data[3]
-        ren.ji_gou = data[4]
-        ren.tuan_dui = data[5]
-        ren.zhi_ji = data[6]
-        ren.ru_si_shi_jian = data[7]
-        ren.ru_zhi_shi_jian = data[8]
-        ren.ru_si_zhi_ji = data[9]
-        ren.kao_he_lei_xing = data[10]
-        ren.he_tong_lei_xing = data[11]
-        info.append(ren)
-    write_excel(info)
+            if temp[0] is None:
+                self._tong_qi_bao_fei = ''
+            else:
+                self._tong_qi_bao_fei = temp[0]
+        else:
+            self._tong_qi_bao_fei = ''
 
+        if self._tong_qi_bao_fei == '':
+            return self._tong_qi_bao_fei
+        else:
+            return self._tong_qi_bao_fei / 10000
 
-if __name__ == '__main__':
-    main()
+    @property
+    def tong_bi(self):
+        """保费同比"""
+        if self.he_ding is True:
+            print(self.xing_ming)
+            self._tong_bi = float(self.shang_nian_bao_fei) \
+                / float(self.tong_qi_bao_fei) - 1
+        else:
+            self._tong_bi = ''
+        return self._tong_bi
+
+    @property
+    def yuan_si_ling_gong_zi(self):
+        """原司龄工资"""
+        he_ding_date = f"{datetime.now().year}-{(int(self.month)):>02}"
+        sql_str = f"SELECT [司龄工资] \
+            FROM [司龄工资] \
+            WHERE [业务员] = '{self.ye_wu_yuan}'\
+            AND [核定时间] = '{he_ding_date}'"
+        self.cur.execute(sql_str)
+        return self.cur.fetchone()[0]
+
+    @property
+    def zheng_ti_tong_bi(self):
+        """分公司整体同比增长率"""
+        start_date = f"{self.year-1}-{self.month:>02}"
+        end_date = f"{self.year}-{(int(self.month)-1):>02}"
+        sql_str = f"SELECT SUM ([签单保费/批改保费]) \
+            FROM [司龄工资保费清单] \
+            WHERE [投保确认日期] >= '{start_date}' \
+            AND [投保确认日期] <= '{end_date}'"
+        self.cur.execute(sql_str)
+        shang_nian_bao_fei = self.cur.fetchone()[0]
+
+        start_date = f"{self.year-2}-{self.month:>02}"
+        end_date = f"{self.year-1}-{(int(self.month)-1):>02}"
+        sql_str = f"SELECT SUM ([签单保费/批改保费]) \
+            FROM [司龄工资保费清单] \
+            WHERE [投保确认日期] >= '{start_date}' \
+            AND [投保确认日期] <= '{end_date}'"
+        self.cur.execute(sql_str)
+        tong_qi_bao_fei = self.cur.fetchone()[0]
+
+        return shang_nian_bao_fei / tong_qi_bao_fei - 1
+
+    @property
+    def si_ling_gong_zi_bian_hua(self):
+        sql_str = f""
+        if he_ding is False:
+            return 0
+        elif int(self.ru_si_shi_jian[:4]) == self.year - 1:
+            pass

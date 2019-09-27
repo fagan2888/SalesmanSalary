@@ -1,37 +1,42 @@
-# _*_coding: utf-8 _*_
+import sqlite3
+from Selesman import Selesman
+from write_excel import write_excel
 
-import tkinter as tk
+conn = sqlite3.connect(r"Data\data.db")
+cur = conn.cursor()
 
 
-class Root(tk.Tk):
-    def __init__(self):
-        super().__init__()
+def main():
+    month = input("请输入考核月份：")
+    sql_str = f"SELECT [业务员], [姓名], [工号], [中心支公司], [机构], \
+        [销售团队], [职级], [入职时间], [入司职级], [考核类型],\
+        [合同类型] ,[入司时间]\
+        FROM [销售人员] \
+        WHERE [在职状态] = '在职' \
+        ORDER BY [中心支公司], [销售团队], [考核类型], [业务员]"
+    cur.execute(sql_str)
+    datas = cur.fetchall()
+    info = []
+    for data in datas:
+        ren = Selesman(cur)
+        ren.month = month
+        ren.ye_wu_yuan = data[0]
+        ren.xing_ming = data[1]
+        ren.gong_hao = data[2]
+        ren.zhong_zhi = data[3]
+        ren.ji_gou = data[4]
+        ren.tuan_dui = data[5]
+        ren.zhi_ji = data[6]
+        ren.ru_zhi_shi_jian = data[7]
+        ren.ru_si_zhi_ji = data[8]
+        ren.kao_he_lei_xing = data[9]
+        ren.he_tong_lei_xing = data[10]
+        ren.ru_si_shi_jian = data[11]
 
-        self.lbl_name = tk.Label(self, text='姓名：')
-        self.lbl_name.grid(row=0, column=0, padx=5, pady=5)
-        self.ent_name = tk.Entry()
-        self.ent_name.grid(row=0, column=1)
-        self.lbl_job_id = tk.Label(self, text='工号：')
-        self.lbl_job_id.grid(row=0, column=2, padx=5, pady=5)
-        self.ent_job_id = tk.Entry()
-        self.ent_job_id.grid(row=0, column=3, padx=5, pady=5)
-        self.lbl_id_num = tk.Label(self, text='身份证号：')
-        self.lbl_id_num.grid(row=0, column=4, padx=5, pady=5)
-        self.ent_id_num = tk.Entry()
-        self.ent_id_num.grid(row=0, column=5, padx=5, pady=5)
+        info.append(ren)
+    write_excel(info)
 
-1	中心支公司	
-2	机构		
-3	销售团队				
-7	在职状态		
-8	合同类型		
-10	考核类型		
-11	职级		
-12	入职时间		
-13	入司职级		
-14	入司时间
-标准保费
-司龄工资		
-if __name__ == "__main__":
-    root = Root()
-    root.mainloop()
+if __name__ == '__main__':
+    main()
+    cur.close()
+    conn.close()
