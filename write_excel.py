@@ -67,21 +67,21 @@ def write_excel(info):
     ws.cell(row=nrow, column=14).value = '考核后司龄工资'
     ws.cell(row=nrow, column=15).value = '核定说明'
 
-    # ws.column_dimensions['A'] = 30
-    # ws.column_dimensions['B'] = 30
-    # ws.column_dimensions['C'] = 30
-    # ws.column_dimensions['D'] = 30
-    # ws.column_dimensions['E'] = 30
-    # ws.column_dimensions['F'] = 30
-    # ws.column_dimensions['G'] = 30
-    # ws.column_dimensions['H'] = 30
-    # ws.column_dimensions['I'] = 30
-    # ws.column_dimensions['J'] = 30
-    # ws.column_dimensions['K'] = 30
-    # ws.column_dimensions['L'] = 30
-    # ws.column_dimensions['M'] = 30
-    # ws.column_dimensions['N'] = 30
-    # ws.column_dimensions['O'] = 30
+    ws.column_dimensions['A'].width = 4
+    ws.column_dimensions['B'].width = 6
+    ws.column_dimensions['C'].width = 20
+    ws.column_dimensions['D'].width = 9
+    ws.column_dimensions['E'].width = 6
+    ws.column_dimensions['F'].width = 20
+    ws.column_dimensions['G'].width = 20
+    ws.column_dimensions['H'].width = 15
+    ws.column_dimensions['I'].width = 30
+    ws.column_dimensions['J'].width = 30
+    ws.column_dimensions['K'].width = 30
+    ws.column_dimensions['L'].width = 10
+    ws.column_dimensions['M'].width = 10
+    ws.column_dimensions['N'].width = 10
+    ws.column_dimensions['O'].width = 70
 
     for i in range(1, 16):
         ws.cell(row=nrow, column=i).style = style_bold
