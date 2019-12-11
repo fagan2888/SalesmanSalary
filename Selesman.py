@@ -187,7 +187,7 @@ class Selesman(object):
     @property
     def yuan_si_ling_gong_zi(self):
         """获取原司龄工资"""
-        he_ding_date = f"{datetime.now().year}-{(int(self.month)):>02}"
+        he_ding_date = f"{datetime.now().year}-{(int(self.month)-1):>02}"
         sql_str = f"SELECT [司龄工资] \
             FROM [司龄工资] \
             WHERE [业务员] = '{self.ye_wu_yuan}'\

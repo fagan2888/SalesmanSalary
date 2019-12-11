@@ -15,7 +15,7 @@ def write_excel(info):
     font_bold = Font(name='微软雅黑',
                      size=12,
                      bold=True)
-    font = Font(name='微软雅黑', 
+    font = Font(name='微软雅黑',
                 size=12)
     border = Border(left=Side(style='thin', color='000000'),
                     right=Side(style='thin', color='000000'),
