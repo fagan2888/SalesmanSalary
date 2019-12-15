@@ -1,18 +1,44 @@
 from openpyxl import load_workbook
+import logging
 import sqlite3
 
-wb = load_workbook(filename=r'司龄工资保费统计表.xlsx', read_only=True)
-ws = wb['page']
+logging.disable(logging.NOTSET)
+logging.basicConfig(level=logging.DEBUG, 
+                    format=' %(asctime)s | %(levelname)s | %(message)s')
+
+def update(conn, cur, file_name):
+    
+    cur.execute(f"DELETE FROM '{file_name}'")
+
+    wb = load_workbook(f'{file_name}.xlsx', read_only=True)
+
+    if '12个月' in file_name:
+        ws = wb['Sheet1']
+        begin_row = 2
+    else:
+        ws = wb['page1']
+        begin_row = 3
+
+    for row in ws.iter_rows(min_row=begin_row,
+                            max_row=ws.max_row,
+                            min_col=1,
+                            max_col=ws.max_column):
+        str_sql = f"INSERT INTO '{file_name}' VALUES ("
+        for r in row:
+            str_sql += f"'{r.value}', "
+
+        str_sql = str_sql[:-2] + ')'
+        cur.execute(str_sql)
+
+    conn.commit()
+
+    logging.debug(f"{file_name} 表更新完成")
+
 
 conn = sqlite3.connect(r'Data\data.db')
 cur = conn.cursor()
 
-for row in ws.iter_rows(min_row=2, values_only=True):
-    sql_str = f"INSERT INTO [司龄工资保费清单] VALUES ('{row[0]}', '{row[1]}', \
-'{row[2]}', '{row[3]}', '{row[4]}', '{row[5]}', '{row[6]}', {row[7]})"
-    cur.execute(sql_str)
-
-conn.commit()
-
-cur.close()
-conn.close()
+update(conn, cur, "司龄工资核定表")
+update(conn, cur, "前线人员信息表")
+update(conn, cur, '滚动12个月签单保费')
+update(conn, cur, '滚动12个月同期签单保费')
