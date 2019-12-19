@@ -3,17 +3,18 @@ import logging
 import sqlite3
 
 logging.disable(logging.NOTSET)
-logging.basicConfig(level=logging.DEBUG, 
-                    format=' %(asctime)s | %(levelname)s | %(message)s')
+logging.basicConfig(level=logging.DEBUG,
+                    format=' %(asctime)s | %(message)s')
+
 
 def update(conn, cur, file_name):
-    
+
     cur.execute(f"DELETE FROM '{file_name}'")
 
-    wb = load_workbook(f'{file_name}.xlsx', read_only=True)
+    wb = load_workbook(f'司龄工资\\{file_name}.xlsx', read_only=True)
 
     if '12个月' in file_name:
-        ws = wb['Sheet1']
+        ws = wb['page']
         begin_row = 2
     else:
         ws = wb['page1']
