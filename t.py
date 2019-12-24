@@ -1,15 +1,17 @@
-from dataclasses import dataclass
+import re
+import sqlite3
 
 
-@dataclass
-class text:
-    aa: str = None
-    bb: str = None
+conn = sqlite3.connect(r'Data\data.db')
+cur = conn.cursor()
 
+str_sql = "SELECT 业务员 FROM [滚动12个月同期签单保费]"
 
-t = text()
+cur.execute(str_sql)
 
-t.aa = 12
-t.bb = 10
+name_list = cur.fetchall()
+for name in name_list:
+    for n in name:
+        print(n)
 
-print(t)
+        
