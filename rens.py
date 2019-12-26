@@ -15,68 +15,95 @@ class Rens():
         self._ji_gou: str = None  # 机构
         self._zhi_ji: str = None  # 当前职级
         self._he_tong: str = None  # 合同类型
-        self._ru_si_zhi_ji: str = None  # 入司职级
         self._ru_si_shi_jian: str = None  # 入司时间
         self._ru_si_yue_fen: int = None  # 入司月份
-        self._shi_fou_he_ding: str = None  # 是否重新核定
-        self._bao_fei: float = None  # 滚动12个月签单保费
-        self._tong_qi_bao_fei: float = None  # 滚动12个月同期签单保费
-        self._zeng_zhang_lv: float = None  # 同比增长率
-        self._si_ling_gong_zi: int = None  # 司龄工资
-        self._bian_hua: int = None  # 司龄工资变化
-        self._he_ding: int = None  # 核定后的司龄工资
         self._shuo_ming: str = None  # 核定说明
 
         # 获取当前年份及月份
-        self._year = date.today().strftime("%Y")
-        self._month = date.today().strftime("%m")
+        self._year: int = int(date.today().strftime("%Y"))
+        self._month: int = int(date.today().strftime("%m"))
 
+        # 数据库连接
         self._conn = conn
         self._cur = cur
 
     @property
     def name(self):
+        '''
+        返回业务员姓名
+        '''
         return self._name
 
     @name.setter
     def name(self, value):
+        '''
+        设置业务员姓名
+        '''
         self._name = value
 
     @property
     def zhong_zhi(self):
+        '''
+        返回业务员所在中支
+        '''
         return self._zhong_zhi
 
     @zhong_zhi.setter
     def zhong_zhi(self, value):
+        '''
+        设置业务员所在中支
+        '''
         self._zhong_zhi = value
 
     @property
     def ji_gou(self):
+        '''
+        返回业务员所在机构
+        '''
         return self._ji_gou
 
     @ji_gou.setter
     def ji_gou(self, value):
+        '''
+        设置业务员所在机构
+        '''
         self._ji_gou = value
 
     @property
     def zhi_ji(self):
+        '''
+        返回业务员当前职级
+        '''
         return self._zhi_ji
 
     @zhi_ji.setter
     def zhi_ji(self, value):
+        '''
+        设置业务员当前职级
+        '''
         self._zhi_ji = value
 
     @property
     def he_tong(self):
+        '''
+        返回业务员的合同类型，“正编”或“劳务派遣”
+        '''
         return self._he_tong
 
     @he_tong.setter
     def he_tong(self, value):
+        '''
+        设置业务员的合同类型，“正编”或“劳务派遣”
+        '''
         self._he_tong = value
 
     @property
     def ru_si_zhi_ji(self):
-        # 获取人员当前司龄工资的核定信息
+        '''
+        返回业务员的入司职级
+        如果未能从司龄工资核定表中查询到相关人员则证明为新增人员，入司职级等于当前职级
+        '''
+
         str_sql = f"SELECT 入司职级 \
                     FROM 司龄工资核定表 \
                     WHERE 姓名 = '{self._name}'"
@@ -86,115 +113,233 @@ class Rens():
 
         logging.debug(f"{self._name}, {value}")
 
-        if value is None:
-            self._ru_si_zhi_ji = self._zhi_ji  # 当前职级等于入司职级
-        else:
-            for v in value:
-                self._ru_si_zhi_ji = v
-
-        return self._ru_si_zhi_ji
+        for v in value:
+            if v is None:
+                return self._zhi_ji  # 当前职级等于入司职级
+            else:
+                return v
 
     @property
     def ru_si_shi_jian(self):
+        '''
+        返回入司时间
+        '''
         return self._ru_si_shi_jian
 
     @ru_si_shi_jian.setter
     def ru_si_shi_jian(self, value):
+        '''
+        设置入司时间
+        '''
         self._ru_si_shi_jian = value
 
     @property
     def ru_si_nian_fen(self):
-        return self._ru_si_shi_jian[:4]
+        '''
+        返回入司年份
+        '''
+        return int(self._ru_si_shi_jian[:4])
 
     @property
     def ru_si_yue_fen(self):
-        return self._ru_si_shi_jian[5:7]
+        '''
+        返回入司月份
+        '''
+        return int(self._ru_si_shi_jian[5:7])
 
     @property
     def shi_fou_he_ding(self):
+        '''
+        返回是否重新核定
+        评定依据为不是本年入司，并且入司月份不是上月
+        '''
         if self.ru_si_nian_fen != self._year \
-          and int(self.ru_si_yue_fen) == int(self._month) - 1:
+           and self.ru_si_yue_fen == self._month - 1:
             return "重新核定"
         else:
-            return "不予重新定"
+            return "不予重新核定"
 
     @property
     def bao_fei(self):
-        return self._bao_fei
+        '''
+        返回滚动12个月签单保费
+            如果该业务员符合重新核定标准则统计滚动12个月签单保费，否则统计保费为空
+        '''
+        if self.shi_fou_he_ding == '重新核定':
+            str_sql = f"SELECT SUM(签单保费)/10000\
+                        FROM   [滚动12个月签单保费]\
+                        WHERE  ([业务员] LIKE '%{self.name}'\
+                        OR [业务员] LIKE '%{self.name}(%'\
+                        OR [业务员] LIKE '%{self.name}（%'\
+                        OR [业务员] LIKE '%{self.name}\\%'\
+                        OR [业务员] LIKE '%{self.name}/%')"
 
-    @bao_fei.setter
-    def bao_fei(self, value):
-        self._bao_fei = value
+            self._cur.execute(str_sql)
+            value = self._cur.fetchone()
+            for v in value:
+                if v is None:
+                    return 0
+                else:
+                    return v
+        else:
+            return ''
 
     @property
     def tong_qi_bao_fei(self):
-        return self._tong_qi_bao_fei
+        '''
+        返回滚动12个月同期签单保费
+            如果该业务员符合重新核定标准则统计滚动12个月同期签单保费，否则统计保费为空
+        '''
+        if self.shi_fou_he_ding == '重新核定':
+            str_sql = f"SELECT SUM(签单保费)/10000\
+                        FROM   [滚动12个月同期签单保费]\
+                        WHERE  ([业务员] LIKE '%{self.name}'\
+                        OR [业务员] LIKE '%{self.name}(%'\
+                        OR [业务员] LIKE '%{self.name}（%'\
+                        OR [业务员] LIKE '%{self.name}\\%'\
+                        OR [业务员] LIKE '%{self.name}/%')"
 
-    @tong_qi_bao_fei.setter
-    def tong_qi_bao_fei(self, value):
-        self._tong_qi_bao_fei = value
+            self._cur.execute(str_sql)
+            value = self._cur.fetchone()
+            for v in value:
+                if v is None:
+                    return 0
+                else:
+                    return v
+        else:
+            return ''
 
     @property
     def zeng_zhang_lv(self):
-        return self._zeng_zhang_lv
+        '''
+        返回同比增长率
+            如果该人员符合重新核定标准则进行计算同比增长率，否则同比增长率为空
+            如果滚动12个月同期签单保费为0，则证明入司首次满一年，同比增长率为100%
+        '''
+        if self.shi_fou_he_ding == '重新核定':
+            if self.tong_qi_bao_fei == 0:
+                return 1
+            else:
+                return self.bao_fei / self.tong_qi_bao_fei - 1
+        else:
+            return ''
 
-    @zeng_zhang_lv.setter
-    def zeng_zhang_lv(self, value):
-        self._zeng_zhang_lv = value
+    @property
+    def zheng_ti_bao_fei(self):
+        '''
+        返回分公司整体滚动12个月签单保费
+        '''
+        str_sql = f"SELECT SUM(签单保费)/10000\
+                    FROM   [滚动12个月签单保费]"
+
+        self._cur.execute(str_sql)
+        for v in self._cur.fetchone():
+            return v
+
+    @property
+    def zheng_ti_tong_qi_bao_fei(self):
+        '''
+        返回分公司整体滚动12个月同期签单保费
+        '''
+        str_sql = f"SELECT SUM(签单保费)/10000\
+                    FROM [滚动12个月同期签单保费]"
+
+        self._cur.execute(str_sql)
+        for v in self._cur.fetchone():
+            return v
+
+    @property
+    def zheng_ti_zeng_zhang_lv(self):
+        '''
+        返回分公司整体同比增长率
+        '''
+        return self.zheng_ti_bao_fei / self.zheng_ti_tong_qi_bao_fei - 1
 
     @property
     def si_ling_gong_zi(self):
-        return self._si_ling_gong_zi
+        '''
+        返回当前司龄工资表中该员工的司龄工资
+        '''
+        str_sql = f"SELECT 现任司龄工资 \
+                    FROM 司龄工资核定表 \
+                    WHERE 姓名 = '{self._name}'"
 
-    @si_ling_gong_zi.setter
-    def si_ling_gong_zi(self, value):
-        self._si_ling_gong_zi = value
+        self._cur.execute(str_sql)
+        value = self._cur.fetchone()
+
+        for v in value:
+            if v is None:
+                return 0
+            else:
+                return v
 
     @property
     def bian_hua(self):
-        return self._bian_hua
+        '''
+        返回重新核定后司龄工资的变化
+        '''
 
-    @bian_hua.setter
-    def bian_hua(self, value):
-        self._bian_hua = value
+        if self.shi_fou_he_ding == '重新核定':
+            if self.ru_si_nian_fen == self._year - 1:
+                if '初级客户经理' in self.ru_si_zhi_ji:
+                    # 符合重新核定规则、上一年度入司、入司职级为初级客户经理
+                    # 司龄工资评定为 50
+                    self.shuo_ming = '入职首次满一年且入司职级为初级客户经理'
+                    return 50
+                else:
+                    self.shuo_ming = '入职首次满一年'
+                    # 符合重新核定规则、上一年度入司、入司职级不是初级客户经理
+                    # 司龄工资评定为 100
+                    return 100
+            elif self.si_ling_gong_zi >= '1000':
+                if self.zeng_zhang_lv >= 0:
+                    # 符合重新评定规则、入司超过一年，且司龄工资达1000或以上，同比正增长的
+                    # 司龄工资已达上限，不在追加
+                    self.shuo_ming = '司龄工资已达上限，不予增加'
+                    return 0
+                else:
+                    self.shuo_ming = '同比负增长'
+                    # 符合重新评定规则、入司超过一年，且司龄工资达1000或以上，同比副增长的
+                    # 司龄工资减少50
+                    return - 50
+            elif self.zeng_zhang_lv >= self.zheng_ti_zeng_zhang_lv:
+                # 符合重新评定规则，入司超过一年，同比增长率高于分公司整体
+                # 司龄工资增加 100
+                self.shuo_ming = '同比增长率高于分公司'
+                return 100
+            elif self.zeng_zhang_lv >= 0:
+                # 符合重新评定规则，入司超过一年，同比正增长，但低于分公司整体
+                # 司龄工资增加 50
+                self.shuo_ming = '同比增长率大于0，但低于分公司'
+                return 50
+            else:
+                # 符合重新评定规则，入司超过一年，同比负增长
+                # 司龄工资减少 50
+                self.shuo_ming = '同比负增长'
+                return -50
+        else:
+            return 0
 
     @property
     def he_ding(self):
-        return self._he_ding
-
-    @he_ding.setter
-    def he_ding(self, value):
-        self._he_ding = value
+        '''
+        返回最终的核定司龄工资
+        '''
+        return self.si_ling_gong_zi + self.bian_hua
 
     @property
     def shuo_ming(self):
+        '''
+        返回重新核定的说明
+        '''
         return self._shuo_ming
 
     @shuo_ming.setter
     def shuo_ming(self, value):
+        '''
+        设置重新核定的说明
+        '''
         self._shuo_ming = value
-
-
-    # def si_ling_gong_zi_biao(self):
-
-    #     # 获取人员当前司龄工资的核定信息
-    #     str_sql = f"SELECT \
-    #                 入司职级, \
-    #                 FROM 司龄工资核定表 \
-    #                 WHERE 姓名 = '{self._name}'"
-
-    #     self._cur.execute(str_sql)
-    #     value = self._cur.fetchone()
-
-    #     # 新入司人员的信息进行评定
-    #     if value == []:
-    #         self._ru_si_nian_fen = self._ru_si_shi_jian[:4]  # 入司年份
-    #         self._ru_si_yue_fen = self._ru_si_shi_jian[5:7]  # 入司月份
-    #         self._si_ling_gong_zi = '0'  # 新入司人员司龄工资为 0
-
-    #     for v in value:
-    #         self._ru_si_yue_fen = v[1]
-    #         self._si_ling_gong_zi = v[2]
 
 
 def main():
@@ -237,7 +382,12 @@ def main():
             f"{ren.ru_si_shi_jian:>12}",
             f"{ren.ru_si_nian_fen:>6}",
             f"{ren.ru_si_yue_fen:>4}",
-            f"{ren.shi_fou_he_ding:>10}")
+            f"{ren.shi_fou_he_ding:>10}",
+            f"{ren.bao_fei:>10}",
+            f"{ren.tong_qi_bao_fei:>10}",
+            f"{ren.zeng_zhang_lv:>10}",
+            f"{ren.bian_hua:>10}",
+            f"{ren.shuo_ming}")
 
 
 if __name__ == '__main__':
