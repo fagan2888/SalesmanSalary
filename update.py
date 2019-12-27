@@ -17,7 +17,7 @@ def update(conn, cur, file_name):
         ws = wb['page']
         begin_row = 2
     else:
-        ws = wb['page1']
+        ws = wb['司龄工资核定表']
         begin_row = 3
 
     for row in ws.iter_rows(min_row=begin_row,
